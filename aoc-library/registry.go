@@ -8,7 +8,15 @@ type Solition interface {
 
 var registry map[int]Solition = make(map[int]Solition)
 
-func Register(dayNo int, solution Solition) {
+func Register(filename string, solution Solition) {
+	dayNo := -1
+	n, err := fmt.Sscanf(filename, "day%d", &dayNo)
+	if n != 1 {
+		panic(fmt.Sprintf("Read %d values instead of 1 from %q", n, filename))
+	}
+	if err != nil {
+		panic(err)
+	}
 	if dayNo < 0 {
 		panic(fmt.Sprintf("Invalid day %v", dayNo))
 	}

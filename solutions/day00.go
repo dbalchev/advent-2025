@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	aoclibrary.Register(0, &Day00{})
+	aoclibrary.Register("day00", &Day00{})
 }
 
 type Day00 struct{}
