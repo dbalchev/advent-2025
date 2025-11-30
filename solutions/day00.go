@@ -9,19 +9,12 @@ import (
 )
 
 func init() {
-	aoclibrary.Register("day00", &Day00{})
+	aoclibrary.Register("day00", &day00{})
 }
 
-type Day00 struct{}
+type day00 struct{}
 
-func iabs(x int) int {
-	if x >= 0 {
-		return x
-	}
-	return -x
-}
-
-func (*Day00) Solve(context *aoclibrary.Context) error {
+func (*day00) Solve(context *aoclibrary.Context) error {
 	lefts := make([]int, 0)
 	rights := make([]int, 0)
 	for {
@@ -45,6 +38,13 @@ func (*Day00) Solve(context *aoclibrary.Context) error {
 	context.Solution(2, sum)
 
 	return nil
+}
+
+func iabs(x int) int {
+	if x >= 0 {
+		return x
+	}
+	return -x
 }
 
 func solve1(lefts []int, rights []int) int {
