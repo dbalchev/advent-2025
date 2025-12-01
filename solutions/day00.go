@@ -40,19 +40,12 @@ func (*day00) Solve(context *aoclibrary.Context) error {
 	return nil
 }
 
-func iabs(x int) int {
-	if x >= 0 {
-		return x
-	}
-	return -x
-}
-
 func solve1(lefts []int, rights []int) int {
 	slices.Sort(lefts)
 	slices.Sort(rights)
 	sum := 0
 	for i := range lefts {
-		sum += int(iabs(lefts[i] - rights[i]))
+		sum += int(aoclibrary.Iabs(lefts[i] - rights[i]))
 	}
 	return sum
 }

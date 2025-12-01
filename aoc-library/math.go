@@ -1,0 +1,8 @@
+package aoclibrary
+
+func Iabs(x int) int {
+	if x >= 0 {
+		return x
+	}
+	return -x
+}
