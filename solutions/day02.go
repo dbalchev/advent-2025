@@ -3,6 +3,7 @@ package solutions
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -99,7 +100,7 @@ func (*day02) Solve(context *aoclibrary.Context) error {
 				if invalidIds[invalidId] {
 					continue
 				}
-				// fmt.Printf("s %v %v\n", nRepeats, invalidId)
+				slog.Debug("s\n", "Repeats", nRepeats, "invalid id", invalidId)
 				if nRepeats == 2 {
 					sumA += invalidId
 				}
