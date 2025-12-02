@@ -100,7 +100,7 @@ func (*day02) Solve(context *aoclibrary.Context) error {
 				if invalidIds[invalidId] {
 					continue
 				}
-				slog.Debug("s\n", "Repeats", nRepeats, "invalid id", invalidId)
+				slog.Debug("s", "Repeats", nRepeats, "invalid id", invalidId)
 				if nRepeats == 2 {
 					sumA += invalidId
 				}
