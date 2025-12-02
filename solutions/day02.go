@@ -3,7 +3,6 @@ package solutions
 import (
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -66,30 +65,53 @@ func (*day02) Solve(context *aoclibrary.Context) error {
 		}
 	}
 	// fmt.Printf("splitRanges = %v\n", processedRanges)
-	sum := 0
+	sumA := 0
+	sumB := 0
 	for _, processedRange := range processedRanges {
 		start, end, nDigits := processedRange[0], processedRange[1], processedRange[2]
-		if nDigits%2 != 0 {
-			continue
+		invalidIds := make(map[int]bool)
+		for nRepeats := 2; nRepeats <= nDigits; nRepeats += 1 {
+			if nDigits%nRepeats != 0 {
+				continue
+			}
+			repeatLen := nDigits / nRepeats
+			minQstr := "1" + strings.Repeat("0", repeatLen-1)
+			minQ, err := strconv.Atoi(minQstr)
+			if err != nil {
+				return err
+			}
+			mStr := strings.Repeat(strings.Repeat("0", repeatLen-1)+"1", nRepeats)
+			m, err := strconv.Atoi(mStr)
+			if err != nil {
+				return err
+			}
+
+			q1 := (start + m - 1) / m
+			q2 := (end + m) / m
+			if q1 < minQ {
+				q1 = minQ
+			}
+			if q2 < minQ {
+				q2 = minQ
+			}
+			for i := q1; i < q2; i += 1 {
+				invalidId := i * m
+				if invalidIds[invalidId] {
+					continue
+				}
+				// fmt.Printf("s %v %v\n", nRepeats, invalidId)
+				if nRepeats == 2 {
+					sumA += invalidId
+				}
+				sumB += invalidId
+				invalidIds[invalidId] = true
+			}
+			// fmt.Printf("%v %v\n", minQstr, mStr)
+			// fmt.Printf("%v %v %v %v %v\n", start, end, m, q1, q2)
+			// sum += m * (q1 + q2) * (q2 - q1) / 2
 		}
-		h := int(math.Pow10(nDigits / 2))
-		m := 1 + h
-		q1 := (start + m - 1) / m
-		q2 := (end + m) / m
-		minQ := h / 10
-		if q1 < minQ {
-			q1 = minQ
-		}
-		if q2 < minQ {
-			q2 = minQ
-		}
-		for i := q1; i < q2; i += 1 {
-			// fmt.Printf("s %v\n", i*m)
-			sum += i * m
-		}
-		// fmt.Printf("%v %v %v %v %v\n", start, end, m, q1, q2)
-		// sum += m * (q1 + q2) * (q2 - q1) / 2
 	}
-	context.Solution("A", sum)
+	context.Solution("A", sumA)
+	context.Solution("B", sumB)
 	return nil
 }
