@@ -24,26 +24,44 @@ func (*day03) Solve(context *aoclibrary.Context) error {
 	lines := strings.Split(strings.Trim(string(inputBytes[:]), "\n"), "\n")
 	slog.Info("Size stats", "nlines", len(lines), "fistrLineLen", len(lines[0]))
 
-	sum := 0
+	sumA := 0
+	var sumB int64 = 0
 	for _, line := range lines {
-		firstIndex := findLargestIndex(line[:len(line)-1])
-		secondIndex := findLargestIndex(line[firstIndex+1:])
-		bestNumberStr := string([]byte{line[firstIndex], line[firstIndex+secondIndex+1]})
-		bestNumber, err := strconv.Atoi(bestNumberStr)
+		solutionA := solveLine03(line, 2)
+		solutionB := solveLine03(line, 12)
+		slog.Debug("best number", "solutionA", solutionA, "solutionB", solutionB, "line", line)
+		numA, err := strconv.Atoi(solutionA)
 		if err != nil {
 			return err
 		}
-		sum += bestNumber
-		slog.Debug("best number", "num", bestNumberStr, "line", line)
+		numB, err := strconv.ParseInt(solutionB, 10, 64)
+		if err != nil {
+			return err
+		}
+		sumA += numA
+		sumB += numB
 	}
-	context.Solution("A", sum)
+	context.Solution("A", sumA)
+	context.Solution("B", sumB)
 	return nil
 }
 
-func findLargestIndex(line string) int {
+func solveLine03(line string, nBateries int) string {
+	resultBytes := make([]byte, 0)
+	lineBytes := []byte(line)
+	startOffset := 0
+	for batteriesLeft := nBateries; batteriesLeft > 0; batteriesLeft -= 1 {
+		currentIndex := findLargestIndex(lineBytes[startOffset : len(line)-batteriesLeft+1])
+		resultBytes = append(resultBytes, lineBytes[startOffset+currentIndex])
+		startOffset += currentIndex + 1
+	}
+	return string(resultBytes)
+}
+
+func findLargestIndex(lineBytes []byte) int {
 	largestIndex := 0
-	for i, c := range line {
-		if c > rune(line[largestIndex]) {
+	for i, c := range lineBytes {
+		if c > lineBytes[largestIndex] {
 			largestIndex = i
 		}
 	}
