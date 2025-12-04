@@ -32,6 +32,7 @@ func (*day00) Solve(context *aoclibrary.Context) error {
 
 	}
 	fmt.Printf("lefts = %v; rights = %v\n", lefts, rights)
+
 	context.Solution(1, solve1(slices.Clone(lefts), slices.Clone(rights)))
 
 	sum := solve2(rights, lefts)
@@ -45,7 +46,8 @@ func solve1(lefts []int, rights []int) int {
 	slices.Sort(rights)
 	sum := 0
 	for i := range lefts {
-		sum += int(aoclibrary.Iabs(lefts[i] - rights[i]))
+
+		sum += int(aoclibrary.Iabs(lefts[i] - rights[i])) //nolint
 	}
 	return sum
 }
