@@ -62,22 +62,10 @@ func findRemovable(nRows int, nCols int, maze [][]byte) [][2]int {
 			if maze[i][j] != '@' {
 				continue
 			}
-			aiMin := i - 1
-			if aiMin < 0 {
-				aiMin = 0
-			}
-			aiMax := i + 2
-			if aiMax > nRows {
-				aiMax = nRows
-			}
-			ajMin := j - 1
-			if ajMin < 0 {
-				ajMin = 0
-			}
-			ajMax := j + 2
-			if ajMax > nCols {
-				ajMax = nCols
-			}
+			aiMin := max(i-1, 0)
+			aiMax := min(i+2, nRows)
+			ajMin := max(j-1, 0)
+			ajMax := min(j+2, nCols)
 			adjRolls := 0
 			for ai := aiMin; ai < aiMax; ai += 1 {
 				for aj := ajMin; aj < ajMax; aj += 1 {
