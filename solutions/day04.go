@@ -21,7 +21,11 @@ func (*day04) Solve(context *aoclibrary.Context) error {
 	if err != nil {
 		return err
 	}
-	maze := strings.Split(strings.Trim(string(inputBytes), "\n"), "\n")
+	mazeStr := strings.Split(strings.Trim(string(inputBytes), "\n"), "\n")
+	maze := make([][]byte, 0)
+	for _, row := range mazeStr {
+		maze = append(maze, []byte(row))
+	}
 	nRows := len(maze)
 	nCols := len(maze[0])
 	for i, row := range maze {
@@ -30,7 +34,29 @@ func (*day04) Solve(context *aoclibrary.Context) error {
 		}
 	}
 	slog.Info("Maze Size", "nRows", nRows, "nCols", nCols)
-	totalCount := 0
+	solutionA := 0
+	solutionB := 0
+	for {
+		removable := findRemovable(nRows, nCols, maze)
+		if solutionB == 0 {
+			solutionA = len(removable)
+		}
+		if len(removable) == 0 {
+			break
+		}
+		slog.Debug("Removable step", "len(removable)", len(removable))
+		solutionB += len(removable)
+		for _, p := range removable {
+			maze[p[0]][p[1]] = '.'
+		}
+	}
+	context.Solution("A", solutionA) // 9 min
+	context.Solution("B", solutionB) // 6 min
+	return nil
+}
+
+func findRemovable(nRows int, nCols int, maze [][]byte) [][2]int {
+	removable := make([][2]int, 0)
 	for i := range nRows {
 		for j := range nCols {
 			if maze[i][j] != '@' {
@@ -64,10 +90,9 @@ func (*day04) Solve(context *aoclibrary.Context) error {
 				}
 			}
 			if adjRolls < 4 {
-				totalCount += 1
+				removable = append(removable, [2]int{i, j})
 			}
 		}
 	}
-	context.Solution("A", totalCount) // 9 min
-	return nil
+	return removable
 }
