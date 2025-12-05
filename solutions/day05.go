@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 
 	aoclibrary "github.com/dbalchev/advent-2025/aoc-library"
 )
@@ -15,6 +16,7 @@ func init() {
 type day05 struct{}
 
 // A 8:48 - 8:56
+// B 8:57 - 9:06
 func (*day05) Solve(context *aoclibrary.Context) error {
 	freshRanges := make([][2]int, 0)
 	ingredients := make([]int, 0)
@@ -54,5 +56,38 @@ func (*day05) Solve(context *aoclibrary.Context) error {
 		}
 	}
 	context.Solution("A", freshCount)
+	context.Solution("B", solve05B(freshRanges))
 	return nil
+}
+
+func solve05B(freshRanges [][2]int) int {
+	events := make([][]int, 0)
+	for _, fr := range freshRanges {
+		events = append(events, []int{fr[0], -1})
+		events = append(events, []int{fr[1], +1})
+	}
+	slices.SortFunc(events, slices.Compare)
+	freshStart := -1
+	acc := 0
+	freshLen := 0
+	for _, event := range events {
+		increment := -event[1]
+		if acc == 0 && increment < 0 {
+			panic("unexpected decrement")
+		}
+		if acc == 0 {
+			freshStart = event[0]
+		}
+		acc += increment
+		if acc == 0 {
+			freshLen += event[0] - freshStart + 1
+		}
+		if acc < 0 {
+			panic("acc is negative")
+		}
+	}
+	if acc != 0 {
+		panic("acc is 0 at end")
+	}
+	return freshLen
 }
