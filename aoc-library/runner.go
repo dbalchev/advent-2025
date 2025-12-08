@@ -31,9 +31,11 @@ func parseLevel(strLevel string) slog.Level {
 func RunMain() {
 	var selectedDay = -1
 	var logLevelStr = "INFO"
+	var generalArg string
 
 	flag.IntVar(&selectedDay, "day", -1, "The day to run")
 	flag.StringVar(&logLevelStr, "log", "INFO", "Log level to use")
+	flag.StringVar(&generalArg, "general", "", "a general arg to be used")
 	flag.Parse()
 	logLevel := parseLevel(logLevelStr)
 	slog.SetLogLoggerLevel(logLevel)
@@ -54,7 +56,9 @@ func RunMain() {
 	if !hasSolution {
 		panic(fmt.Sprintf("No solution for day %v", selectedDay))
 	}
-	var context = Context{}
+	var context = Context{
+		generalArg: generalArg,
+	}
 	err := solution.Solve(&context)
 	if err != nil {
 		context.Eprintf("Final error: %v", err)

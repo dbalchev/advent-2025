@@ -7,6 +7,7 @@ import (
 )
 
 type Context struct {
+	generalArg string
 }
 
 func (context *Context) Eprintf(format string, a ...any) {
@@ -17,4 +18,7 @@ func (context *Context) Solution(part any, solution any) {
 	color.Yellow("Solution %v: ", part)
 	color.Green("%v", solution)
 	fmt.Println()
+}
+func (context *Context) GeneralArg() string {
+	return context.generalArg
 }
