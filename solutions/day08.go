@@ -90,12 +90,25 @@ func (*day08) Solve(context *aoclibrary.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, edge := range edges[:n] {
+	var ufA suf
+	var finalEdge edge
+	nCuircuits := len(boxes)
+	for i, edge := range edges {
+		if i == n {
+			ufA = suf{parent: slices.Clone(uf.parent)}
+		}
+		if uf.find(edge.lh) != uf.find(edge.rh) {
+			nCuircuits -= 1
+			if nCuircuits == 1 {
+				finalEdge = edge
+				break
+			}
+		}
 		uf.union(edge.lh, edge.rh)
 	}
 	circuitSizes := make(map[int]int)
 	for i := range boxes {
-		circuitSizes[uf.find(i)] += 1
+		circuitSizes[ufA.find(i)] += 1
 	}
 	slog.Debug("sizes", "circuitSizes", circuitSizes)
 	justSizes := make([]int, 0)
@@ -105,5 +118,7 @@ func (*day08) Solve(context *aoclibrary.Context) error {
 	slices.Sort(justSizes)
 	justSizes = justSizes[len(justSizes)-3:]
 	context.Solution("A", justSizes[0]*justSizes[1]*justSizes[2])
+	slog.Debug("finalEdge", "edge", finalEdge)
+	context.Solution("B", boxes[finalEdge.lh][0]*boxes[finalEdge.rh][0])
 	return nil
 }
