@@ -17,7 +17,6 @@ type day09 struct{}
 
 func (*day09) Solve(context *aoclibrary.Context) error {
 	inputTiles := make([][]int, 0)
-	m := 16
 	for {
 		tile := [2]int{}
 		n, err := fmt.Scanf("%d,%d\n", &tile[0], &tile[1])
@@ -31,10 +30,6 @@ func (*day09) Solve(context *aoclibrary.Context) error {
 	}
 	xs := make([]int, 0)
 	ys := make([]int, 0)
-	exs := make([]int, 0)
-	eys := make([]int, 0)
-	mxs := make([]int, 0)
-	mys := make([]int, 0)
 	for i, inputTile := range inputTiles {
 		nextIndex := (i + 1) % len(inputTiles)
 		prevTile := inputTiles[(i+len(inputTiles)-1)%len(inputTiles)]
@@ -56,12 +51,6 @@ func (*day09) Solve(context *aoclibrary.Context) error {
 		}
 		xs = append(xs, inputTile[0])
 		ys = append(ys, inputTile[1])
-		// Scaled coordinates, so we can errode without floating point arithmetics
-		mxs = append(mxs, inputTile[0]*m)
-		mys = append(mys, inputTile[1]*m)
-		// Shifted polygon coordinates, to make easier compares ignoring equality
-		exs = append(exs, inputTile[0]*m+dx)
-		eys = append(eys, inputTile[1]*m+dy)
 	}
 	maxArea := 0
 	maxBArea := 0
@@ -76,8 +65,8 @@ func (*day09) Solve(context *aoclibrary.Context) error {
 			if area < maxBArea {
 				continue
 			}
-			cmx := []int{mxs[i], mxs[j]}
-			cmy := []int{mys[i], mys[j]}
+			cmx := []int{xs[i], xs[j]}
+			cmy := []int{ys[i], ys[j]}
 			slices.Sort(cmx[:])
 			slices.Sort(cmy[:])
 			if cmx[0] > cmx[1] {
@@ -85,8 +74,8 @@ func (*day09) Solve(context *aoclibrary.Context) error {
 			}
 			for csi := range xs {
 				nsi := (csi + 1) % len(xs)
-				esxs := []int{exs[csi], exs[nsi]}
-				esys := []int{eys[csi], eys[nsi]}
+				esxs := []int{xs[csi], xs[nsi]}
+				esys := []int{ys[csi], ys[nsi]}
 				slices.Sort(esxs[:])
 				slices.Sort(esys[:])
 				// the segment is incident to a candidate corners
@@ -94,11 +83,11 @@ func (*day09) Solve(context *aoclibrary.Context) error {
 					continue
 				}
 				// the shifted polygon segment doesn't touch the candidate horizontally
-				if cmx[0] > esxs[1] || cmx[1] < esxs[0] {
+				if cmx[0] >= esxs[1] || cmx[1] <= esxs[0] {
 					continue
 				}
 				// the shifted polygon segment doesn't touch the candidate vertically
-				if cmy[0] > esys[1] || cmy[1] < esys[0] {
+				if cmy[0] >= esys[1] || cmy[1] <= esys[0] {
 					continue
 				}
 				slog.Debug(
