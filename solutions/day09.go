@@ -137,7 +137,6 @@ func (*day09) Solve(context *aoclibrary.Context) error {
 					}
 					clsoeSolutionDiscovered()
 					solutions <- area
-					return
 				}
 			}
 		})
