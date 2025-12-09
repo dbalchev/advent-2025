@@ -56,8 +56,10 @@ func (*day09) Solve(context *aoclibrary.Context) error {
 		}
 		xs = append(xs, inputTile[0])
 		ys = append(ys, inputTile[1])
+		// Scaled coordinates, so we can errode without floating point arithmetics
 		mxs = append(mxs, inputTile[0]*m)
 		mys = append(mys, inputTile[1]*m)
+		// Eroded polygon coordinates, to make easier compares
 		exs = append(exs, inputTile[0]*m+dx)
 		eys = append(eys, inputTile[1]*m+dy)
 	}
@@ -84,12 +86,15 @@ func (*day09) Solve(context *aoclibrary.Context) error {
 				esys := []int{eys[csi], eys[nsi]}
 				slices.Sort(esxs[:])
 				slices.Sort(esys[:])
+				// the segment is incident to a candidate corners
 				if i == csi || i == nsi || j == csi || j == nsi {
 					continue
 				}
+				// the errorded polygon segment doesn't touch the candidate horizontally
 				if cmx[0] > esxs[1] || cmx[1] < esxs[0] {
 					continue
 				}
+				// the errorded polygon segment doesn't touch the candidate vertically
 				if cmy[0] > esys[1] || cmy[1] < esys[0] {
 					continue
 				}
