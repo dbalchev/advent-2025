@@ -52,62 +52,64 @@ func (*day09) Solve(context *aoclibrary.Context) error {
 		xs = append(xs, inputTile[0])
 		ys = append(ys, inputTile[1])
 	}
-	maxArea := 0
-	maxBArea := 0
+	candidates := make([][]int, 0)
 	for i := range xs {
-	jLoop:
 		for dj := range xs[i+1:] {
 			j := i + dj + 1
 			dx := aoclibrary.Iabs(xs[i] - xs[j])
 			dy := aoclibrary.Iabs(ys[i] - ys[j])
 			area := (dx + 1) * (dy + 1)
-			maxArea = max(maxArea, area)
-			if area < maxBArea {
-				continue
-			}
-			cmx := []int{xs[i], xs[j]}
-			cmy := []int{ys[i], ys[j]}
-			slices.Sort(cmx[:])
-			slices.Sort(cmy[:])
-			if cmx[0] > cmx[1] {
-				panic("foo")
-			}
-			for csi := range xs {
-				nsi := (csi + 1) % len(xs)
-				esxs := []int{xs[csi], xs[nsi]}
-				esys := []int{ys[csi], ys[nsi]}
-				slices.Sort(esxs[:])
-				slices.Sort(esys[:])
-				// the segment is incident to a candidate corners
-				if i == csi || i == nsi || j == csi || j == nsi {
-					continue
-				}
-				// the shifted polygon segment doesn't touch the candidate horizontally
-				if cmx[0] >= esxs[1] || cmx[1] <= esxs[0] {
-					continue
-				}
-				// the shifted polygon segment doesn't touch the candidate vertically
-				if cmy[0] >= esys[1] || cmy[1] <= esys[0] {
-					continue
-				}
-				slog.Debug(
-					"skipping",
-					"area", area,
-					"tile1", []int{xs[i], ys[i]},
-					"tile2", []int{xs[j], ys[j]},
-					"seg1", []int{xs[csi], ys[csi]},
-					"seg2", []int{xs[nsi], ys[nsi]},
-					"cmx", cmx,
-					"cmy", cmy,
-					"esxs", esxs,
-					"esys", esys,
-				)
-				continue jLoop
-			}
-			maxBArea = max(maxBArea, area)
+			candidates = append(candidates, []int{area, i, j})
 		}
 	}
-	context.Solution("A", maxArea)
+	slices.SortFunc(candidates, slices.Compare)
+	slices.Reverse(candidates)
+	maxBArea := 0
+candidatesLoop:
+	for _, candidate := range candidates {
+		area := candidate[0]
+		i := candidate[1]
+		j := candidate[2]
+		cmx := []int{xs[i], xs[j]}
+		cmy := []int{ys[i], ys[j]}
+		slices.Sort(cmx[:])
+		slices.Sort(cmy[:])
+		for csi := range xs {
+			nsi := (csi + 1) % len(xs)
+			esxs := []int{xs[csi], xs[nsi]}
+			esys := []int{ys[csi], ys[nsi]}
+			slices.Sort(esxs[:])
+			slices.Sort(esys[:])
+			// the segment is incident to a candidate corners
+			if i == csi || i == nsi || j == csi || j == nsi {
+				continue
+			}
+			// the shifted polygon segment doesn't touch the candidate horizontally
+			if cmx[0] >= esxs[1] || cmx[1] <= esxs[0] {
+				continue
+			}
+			// the shifted polygon segment doesn't touch the candidate vertically
+			if cmy[0] >= esys[1] || cmy[1] <= esys[0] {
+				continue
+			}
+			slog.Debug(
+				"skipping",
+				"area", area,
+				"tile1", []int{xs[i], ys[i]},
+				"tile2", []int{xs[j], ys[j]},
+				"seg1", []int{xs[csi], ys[csi]},
+				"seg2", []int{xs[nsi], ys[nsi]},
+				"cmx", cmx,
+				"cmy", cmy,
+				"esxs", esxs,
+				"esys", esys,
+			)
+			continue candidatesLoop
+		}
+		maxBArea = max(maxBArea, area)
+		break
+	}
+	context.Solution("A", candidates[0][0])
 	context.Solution("B", maxBArea)
 	return nil
 }
