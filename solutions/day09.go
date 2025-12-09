@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"slices"
+	"sync"
 
 	aoclibrary "github.com/dbalchev/advent-2025/aoc-library"
 )
@@ -16,6 +17,7 @@ func init() {
 type day09 struct{}
 
 func (*day09) Solve(context *aoclibrary.Context) error {
+	nThreads := 8
 	inputTiles := make([][]int, 0)
 	for {
 		tile := [2]int{}
@@ -64,52 +66,90 @@ func (*day09) Solve(context *aoclibrary.Context) error {
 	}
 	slices.SortFunc(candidates, slices.Compare)
 	slices.Reverse(candidates)
-	maxBArea := 0
-candidatesLoop:
-	for _, candidate := range candidates {
-		area := candidate[0]
-		i := candidate[1]
-		j := candidate[2]
-		cmx := []int{xs[i], xs[j]}
-		cmy := []int{ys[i], ys[j]}
-		slices.Sort(cmx[:])
-		slices.Sort(cmy[:])
-		for csi := range xs {
-			nsi := (csi + 1) % len(xs)
-			esxs := []int{xs[csi], xs[nsi]}
-			esys := []int{ys[csi], ys[nsi]}
-			slices.Sort(esxs[:])
-			slices.Sort(esys[:])
-			// the segment is incident to a candidate corners
-			if i == csi || i == nsi || j == csi || j == nsi {
-				continue
+	candidateChannel := make(chan []int, 64)
+	solutionDiscovered := make(chan any, 1)
+	clsoeSolutionDiscovered := sync.OnceFunc(func() {
+		close(solutionDiscovered)
+	})
+	solutions := make(chan int, nThreads+1)
+	wg := sync.WaitGroup{}
+	go func() {
+		for _, candcandidate := range candidates {
+			select {
+			case candidateChannel <- candcandidate:
+			case _, ok := <-solutionDiscovered:
+				slog.Info("exiting the candidates filling channel", "ok", ok)
+				return
 			}
-			// the shifted polygon segment doesn't touch the candidate horizontally
-			if cmx[0] >= esxs[1] || cmx[1] <= esxs[0] {
-				continue
-			}
-			// the shifted polygon segment doesn't touch the candidate vertically
-			if cmy[0] >= esys[1] || cmy[1] <= esys[0] {
-				continue
-			}
-			slog.Debug(
-				"skipping",
-				"area", area,
-				"tile1", []int{xs[i], ys[i]},
-				"tile2", []int{xs[j], ys[j]},
-				"seg1", []int{xs[csi], ys[csi]},
-				"seg2", []int{xs[nsi], ys[nsi]},
-				"cmx", cmx,
-				"cmy", cmy,
-				"esxs", esxs,
-				"esys", esys,
-			)
-			continue candidatesLoop
 		}
-		maxBArea = max(maxBArea, area)
-		break
+	}()
+	for threadIndex := range nThreads {
+		wg.Go(func() {
+		candidatesLoop:
+			for {
+				select {
+				case _, ok := <-solutionDiscovered:
+					slog.Info("exiting worker", "workerId", threadIndex, "ok", ok)
+					return
+				case candidate, ok := <-candidateChannel:
+					if !ok {
+						slog.Info("ran out of candidates", "workerId", threadIndex)
+						return
+					}
+					area := candidate[0]
+					i := candidate[1]
+					j := candidate[2]
+					cmx := []int{xs[i], xs[j]}
+					cmy := []int{ys[i], ys[j]}
+					slices.Sort(cmx[:])
+					slices.Sort(cmy[:])
+					for csi := range xs {
+						nsi := (csi + 1) % len(xs)
+						esxs := []int{xs[csi], xs[nsi]}
+						esys := []int{ys[csi], ys[nsi]}
+						slices.Sort(esxs[:])
+						slices.Sort(esys[:])
+						// the segment is incident to a candidate corners
+						if i == csi || i == nsi || j == csi || j == nsi {
+							continue
+						}
+						// the shifted polygon segment doesn't touch the candidate horizontally
+						if cmx[0] >= esxs[1] || cmx[1] <= esxs[0] {
+							continue
+						}
+						// the shifted polygon segment doesn't touch the candidate vertically
+						if cmy[0] >= esys[1] || cmy[1] <= esys[0] {
+							continue
+						}
+						slog.Debug(
+							"skipping",
+							"area", area,
+							"tile1", []int{xs[i], ys[i]},
+							"tile2", []int{xs[j], ys[j]},
+							"seg1", []int{xs[csi], ys[csi]},
+							"seg2", []int{xs[nsi], ys[nsi]},
+							"cmx", cmx,
+							"cmy", cmy,
+							"esxs", esxs,
+							"esys", esys,
+						)
+						continue candidatesLoop
+					}
+					clsoeSolutionDiscovered()
+					solutions <- area
+					return
+				}
+			}
+		})
 	}
+	wg.Wait()
+	close(solutions)
+	solutionsSlice := make([]int, 0)
+	for solution := range solutions {
+		solutionsSlice = append(solutionsSlice, solution)
+	}
+	slog.Debug("solutionSlice", "solutionSlice", solutionsSlice)
 	context.Solution("A", candidates[0][0])
-	context.Solution("B", maxBArea)
+	context.Solution("B", slices.Max(solutionsSlice))
 	return nil
 }
