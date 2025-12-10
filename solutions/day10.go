@@ -1,9 +1,11 @@
 package solutions
 
 import (
+	"container/heap"
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand"
 	"os"
 	"slices"
 	"strconv"
@@ -59,88 +61,139 @@ func encode(xs []int) string {
 }
 
 type day10b struct {
-	originalTarget       []int
-	targetKernelAddition map[string]int
-	targetDidtance       int
-	q                    queue[[]int]
-	visited              map[string]int
-	buttonIndices        [][]int
+	heap           d10bHeap
+	visited        map[string]int
+	buttonIndices  [][]int
+	targetDistance int
+	widestButton   int
+}
+
+type d10bState struct {
+	joltagesLeft []int
+	pressesMade  int
+	lowerBound   int
+}
+
+type d10bHeap []d10bState
+
+func (h d10bHeap) Len() int {
+	return len(h)
+}
+
+func (h d10bHeap) Less(i, j int) bool {
+	if h[i].lowerBound == h[j].lowerBound {
+		return h[i].pressesMade > h[j].pressesMade
+	}
+	return h[i].lowerBound < h[j].lowerBound
+}
+
+func (h d10bHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+func (h *d10bHeap) Push(x any) {
+	// Push and Pop use pointer receivers because they modify the slice's length,
+	// not just its contents.
+	*h = append(*h, x.(d10bState))
+}
+
+func (h *d10bHeap) Pop() any {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
 }
 
 func (self *day10b) extractSolution() (int, bool) {
 
-	if self.targetDidtance > 0 {
-		return self.targetDidtance, true
+	if self.targetDistance > 0 {
+		return self.targetDistance, true
 	}
 	return 0, false
 }
 func (self *day10b) init(originalTarget []int, buttonIndices [][]int) {
-	self.originalTarget = originalTarget
-	self.targetKernelAddition = make(map[string]int)
-	self.targetKernelAddition[encode(originalTarget)] = 0
+	widestButton := 0
+	for _, button := range buttonIndices {
+		widestButton = max(widestButton, len(button))
+	}
+	self.widestButton = widestButton
 	self.buttonIndices = buttonIndices
 	self.visited = make(map[string]int)
-	initialState := make([]int, len(originalTarget), len(originalTarget)+1)
-	self.visited[encode(initialState)] = 0
-	initialState = append(initialState, 0)
-	initialState = append(initialState, 0)
-	self.q.push(initialState)
+	self.visited[encode(originalTarget)] = 0
+	self.heap = []d10bState{d10bState{
+		joltagesLeft: slices.Clone(originalTarget),
+		pressesMade:  0,
+		lowerBound:   self.computeLowerBound(originalTarget),
+	}}
+	slog.Debug("init", "widestButton", widestButton)
 }
-func (self *day10b) step() error {
-	x, ok := self.q.pop()
-	if !ok {
-		return fmt.Errorf("empty queue")
+
+func (self *day10b) computeLowerBound(joltagesLeft []int) int {
+	buttonIndices := slices.Clone(self.buttonIndices)
+	estimates := make([]int, 10)
+	for ei := range estimates {
+		jl := slices.Clone(joltagesLeft)
+
+		rand.Shuffle(len(buttonIndices), func(i, j int) {
+			buttonIndices[i], buttonIndices[j] = buttonIndices[j], buttonIndices[i]
+		})
+		for _, button := range buttonIndices {
+			n := slices.Max(jl)
+			for _, bi := range button {
+				n = min(n, jl[bi])
+			}
+			for _, bi := range button {
+				jl[bi] -= n
+			}
+			estimates[ei] += n
+		}
+		estimates[ei] += slices.Max(jl)
+
 	}
-	slog.Debug("", "x", x)
-	firstButton := x[len(x)-1]
-	for bi, button := range self.buttonIndices[firstButton:] {
-		next := slices.Clone(x)
-		nextState := next[:len(next)-2]
-		next[len(next)-2] += 1
-		next[len(next)-1] = bi + firstButton
-		d := next[len(next)-2]
-		for _, buttonIndex := range button {
-			nextState[buttonIndex] += 1
+	// slog.Debug("computeLowerBound", "joltagesLeft", joltagesLeft, "estimates", estimates)
+	return slices.Max(estimates)
+}
+
+func (self *day10b) step() error {
+	if self.heap.Len() == 0 {
+		return fmt.Errorf("empty heap")
+	}
+	current := heap.Pop(&self.heap).(d10bState)
+	// slog.Debug("step", "current", current)
+	encoded := encode(current.joltagesLeft)
+	otherPressesMade, ok := self.visited[encoded]
+	if !ok {
+		return fmt.Errorf("unexpected not visited")
+	}
+	if otherPressesMade < current.pressesMade {
+		return nil
+	}
+	for _, button := range self.buttonIndices {
+		nextLeft := slices.Clone(current.joltagesLeft)
+		pressesMade := current.pressesMade + 1
+		for _, buttonindex := range button {
+			nextLeft[buttonindex] -= 1
 		}
-		encoded := encode(nextState)
-		additioalDistance, reachable := self.targetKernelAddition[encoded]
-		if reachable {
-			slog.Debug("reachable", "additioalDistance", additioalDistance, "encoded", encoded)
-			self.targetDidtance = additioalDistance + d
-		}
-		_, isVisited := self.visited[encoded]
-		if isVisited {
+		if slices.Min(nextLeft) < 0 {
 			continue
 		}
-		if slices.Max(nextState) == slices.Min(nextState) && len(self.targetKernelAddition) == 1 {
-			slog.Debug("kernel found", "kernel", nextState, "d", d, "self.targetKernelAddition", self.targetKernelAddition)
-			mk := slices.Clone(nextState)
-			residual := make([]int, len(mk))
-			kernelMul := 1
-		mkLoop:
-			for {
-				slog.Debug("prefilling", "kernelMul", kernelMul)
-				for i, v := range mk {
-					residual[i] = self.originalTarget[i] - v
-					if residual[i] < 0 {
-						break mkLoop
-					}
-				}
-				encodedResidual := encode(residual)
-				rd, reachable := self.visited[encodedResidual]
-				if reachable {
-					slog.Debug("residual reachable", "rd", rd, "residual", residual)
-					self.targetDidtance = rd + d*kernelMul
-				}
-				self.targetKernelAddition[encodedResidual] = d * kernelMul
-				kernelMul += 1
-				for i, v := range nextState {
-					mk[i] += v
-				}
-			}
+		if slices.Max(nextLeft) == 0 {
+			self.targetDistance = pressesMade
+			return nil
 		}
-		self.visited[encoded] = d
-		self.q.push(next)
+		encoded = encode(nextLeft)
+		otherPressesMade, ok = self.visited[encoded]
+		if ok && otherPressesMade <= pressesMade {
+			continue
+		}
+		self.visited[encoded] = pressesMade
+
+		heap.Push(&self.heap, d10bState{
+			joltagesLeft: nextLeft,
+			pressesMade:  pressesMade,
+			lowerBound:   pressesMade + self.computeLowerBound(nextLeft),
+		})
 	}
 	return nil
 }
