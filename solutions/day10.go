@@ -87,7 +87,11 @@ func (h d10bHeap) Less(i, j int) bool {
 	if h[i].pressesMade != h[j].pressesMade {
 		return h[i].pressesMade > h[j].pressesMade
 	}
-	return sum(h[i].joltagesLeft) < sum(h[j].joltagesLeft)
+	s1, s2 := sum(h[i].joltagesLeft), sum(h[j].joltagesLeft)
+	if s1 != s2 {
+		return s1 < s2
+	}
+	return slices.Max(h[i].joltagesLeft) < slices.Max(h[j].joltagesLeft)
 }
 
 func sum(xs []int) int {
