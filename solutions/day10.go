@@ -81,10 +81,21 @@ func (h d10bHeap) Len() int {
 }
 
 func (h d10bHeap) Less(i, j int) bool {
-	if h[i].lowerBound == h[j].lowerBound {
+	if h[i].lowerBound != h[j].lowerBound {
+		return h[i].lowerBound < h[j].lowerBound
+	}
+	if h[i].pressesMade != h[j].pressesMade {
 		return h[i].pressesMade > h[j].pressesMade
 	}
-	return h[i].lowerBound < h[j].lowerBound
+	return sum(h[i].joltagesLeft) < sum(h[j].joltagesLeft)
+}
+
+func sum(xs []int) int {
+	s := 0
+	for _, x := range xs {
+		s += x
+	}
+	return s
 }
 
 func (h d10bHeap) Swap(i, j int) {
@@ -131,28 +142,33 @@ func (self *day10b) init(originalTarget []int, buttonIndices [][]int) {
 
 func (self *day10b) computeLowerBound(joltagesLeft []int) int {
 	buttonIndices := slices.Clone(self.buttonIndices)
-	estimates := make([]int, 10)
+	estimates := make([]int, 16)
 	for ei := range estimates {
 		jl := slices.Clone(joltagesLeft)
-
-		rand.Shuffle(len(buttonIndices), func(i, j int) {
-			buttonIndices[i], buttonIndices[j] = buttonIndices[j], buttonIndices[i]
-		})
-		for _, button := range buttonIndices {
-			n := slices.Max(jl)
-			for _, bi := range button {
-				n = min(n, jl[bi])
+		for {
+			startingMax := slices.Max(jl)
+			rand.Shuffle(len(buttonIndices), func(i, j int) {
+				buttonIndices[i], buttonIndices[j] = buttonIndices[j], buttonIndices[i]
+			})
+			for _, button := range buttonIndices {
+				n := slices.Max(jl)
+				for _, bi := range button {
+					n = min(n, jl[bi])
+				}
+				for _, bi := range button {
+					jl[bi] -= n
+				}
+				estimates[ei] += n
 			}
-			for _, bi := range button {
-				jl[bi] -= n
+			if startingMax == slices.Max(jl) {
+				break
 			}
-			estimates[ei] += n
 		}
 		estimates[ei] += slices.Max(jl)
 
 	}
 	// slog.Debug("computeLowerBound", "joltagesLeft", joltagesLeft, "estimates", estimates)
-	return slices.Max(estimates)
+	return slices.Min(estimates)
 }
 
 func (self *day10b) step() error {
@@ -160,7 +176,7 @@ func (self *day10b) step() error {
 		return fmt.Errorf("empty heap")
 	}
 	current := heap.Pop(&self.heap).(d10bState)
-	// slog.Debug("step", "current", current)
+	slog.Debug("step", "current", current)
 	encoded := encode(current.joltagesLeft)
 	otherPressesMade, ok := self.visited[encoded]
 	if !ok {
