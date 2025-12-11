@@ -1,11 +1,9 @@
 package solutions
 
 import (
-	"container/heap"
 	"fmt"
 	"io"
 	"log/slog"
-	"math/rand"
 	"os"
 	"slices"
 	"strconv"
@@ -58,164 +56,6 @@ func encode(xs []int) string {
 		strs = append(strs, strconv.FormatInt(int64(x), 10))
 	}
 	return strings.Join(strs, ",")
-}
-
-type day10b struct {
-	heap           d10bHeap
-	visited        map[string]int
-	buttonIndices  [][]int
-	targetDistance int
-	widestButton   int
-}
-
-type d10bState struct {
-	joltagesLeft []int
-	pressesMade  int
-	lowerBound   int
-}
-
-type d10bHeap []d10bState
-
-func (h d10bHeap) Len() int {
-	return len(h)
-}
-
-func (h d10bHeap) Less(i, j int) bool {
-	if h[i].lowerBound != h[j].lowerBound {
-		return h[i].lowerBound < h[j].lowerBound
-	}
-	if h[i].pressesMade != h[j].pressesMade {
-		return h[i].pressesMade > h[j].pressesMade
-	}
-	s1, s2 := sum(h[i].joltagesLeft), sum(h[j].joltagesLeft)
-	if s1 != s2 {
-		return s1 < s2
-	}
-	return slices.Max(h[i].joltagesLeft) < slices.Max(h[j].joltagesLeft)
-}
-
-func sum(xs []int) int {
-	s := 0
-	for _, x := range xs {
-		s += x
-	}
-	return s
-}
-
-func (h d10bHeap) Swap(i, j int) {
-	h[i], h[j] = h[j], h[i]
-}
-
-func (h *d10bHeap) Push(x any) {
-	// Push and Pop use pointer receivers because they modify the slice's length,
-	// not just its contents.
-	*h = append(*h, x.(d10bState))
-}
-
-func (h *d10bHeap) Pop() any {
-	old := *h
-	n := len(old)
-	x := old[n-1]
-	*h = old[0 : n-1]
-	return x
-}
-
-func (self *day10b) extractSolution() (int, bool) {
-
-	if self.targetDistance > 0 {
-		return self.targetDistance, true
-	}
-	return 0, false
-}
-func (self *day10b) init(originalTarget []int, buttonIndices [][]int) {
-	widestButton := 0
-	for _, button := range buttonIndices {
-		widestButton = max(widestButton, len(button))
-	}
-	self.widestButton = widestButton
-	self.buttonIndices = buttonIndices
-	self.visited = make(map[string]int)
-	self.visited[encode(originalTarget)] = 0
-	self.heap = []d10bState{d10bState{
-		joltagesLeft: slices.Clone(originalTarget),
-		pressesMade:  0,
-		lowerBound:   self.computeLowerBound(originalTarget),
-	}}
-	slog.Debug("init", "widestButton", widestButton)
-}
-
-func (self *day10b) computeLowerBound(joltagesLeft []int) int {
-	buttonIndices := slices.Clone(self.buttonIndices)
-	estimates := make([]int, 16)
-	for ei := range estimates {
-		jl := slices.Clone(joltagesLeft)
-		for {
-			startingMax := slices.Max(jl)
-			rand.Shuffle(len(buttonIndices), func(i, j int) {
-				buttonIndices[i], buttonIndices[j] = buttonIndices[j], buttonIndices[i]
-			})
-			for _, button := range buttonIndices {
-				n := slices.Max(jl)
-				for _, bi := range button {
-					n = min(n, jl[bi])
-				}
-				for _, bi := range button {
-					jl[bi] -= n
-				}
-				estimates[ei] += n
-			}
-			if startingMax == slices.Max(jl) {
-				break
-			}
-		}
-		estimates[ei] += slices.Max(jl)
-
-	}
-	// slog.Debug("computeLowerBound", "joltagesLeft", joltagesLeft, "estimates", estimates)
-	return slices.Min(estimates)
-}
-
-func (self *day10b) step() error {
-	if self.heap.Len() == 0 {
-		return fmt.Errorf("empty heap")
-	}
-	current := heap.Pop(&self.heap).(d10bState)
-	slog.Debug("step", "current", current)
-	encoded := encode(current.joltagesLeft)
-	otherPressesMade, ok := self.visited[encoded]
-	if !ok {
-		return fmt.Errorf("unexpected not visited")
-	}
-	if otherPressesMade < current.pressesMade {
-		return nil
-	}
-	for _, button := range self.buttonIndices {
-		nextLeft := slices.Clone(current.joltagesLeft)
-		pressesMade := current.pressesMade + 1
-		for _, buttonindex := range button {
-			nextLeft[buttonindex] -= 1
-		}
-		if slices.Min(nextLeft) < 0 {
-			continue
-		}
-		if slices.Max(nextLeft) == 0 {
-			self.targetDistance = pressesMade
-			return nil
-		}
-		encoded = encode(nextLeft)
-		otherPressesMade, ok = self.visited[encoded]
-		if ok && otherPressesMade <= pressesMade {
-			continue
-		}
-		self.visited[encoded] = pressesMade
-
-		heap.Push(&self.heap, d10bState{
-			joltagesLeft: nextLeft,
-			pressesMade:  pressesMade,
-			lowerBound:   pressesMade + self.computeLowerBound(nextLeft),
-		})
-	}
-	return nil
 }
 
 func (*day10) Solve(context *aoclibrary.Context) error {
@@ -305,21 +145,89 @@ machineLoop1:
 	context.Solution("A", totalPresses)
 	totalPresses = 0
 	for mi, machine := range machines {
-		state := day10b{}
-		slog.Debug("starting machine", "machine", mi)
-		state.init(machine.joltages, machine.buttonIndices)
-		for {
-			currentPressees, done := state.extractSolution()
-			if done {
-				totalPresses += currentPressees
-				slog.Debug("solution", "currentPresses", currentPressees)
-				break
+		slog.Debug("starting machine", "mi", mi)
+		type precomp struct {
+			nPresses int
+			joltages []int
+		}
+		precomps := make([][]precomp, 1<<len(machine.joltages))
+		for pressMask := 0; pressMask < (1 << len(machine.buttonIndices)); pressMask += 1 {
+			nPresses := 0
+			joltages := make([]int, len(machine.joltages))
+			for bi, button := range machine.buttonIndices {
+				if pressMask&(1<<bi) == 0 {
+					continue
+				}
+				nPresses += 1
+				for _, j := range button {
+					joltages[j] += 1
+				}
 			}
-			err = state.step()
-			if err != nil {
-				return err
+			jmask := 0
+			for i, j := range joltages {
+				if j&1 == 0 {
+					continue
+				}
+				jmask |= (1 << i)
+			}
+			fi := -1
+			for i, p := range precomps[jmask] {
+				if slices.Equal(p.joltages, joltages) {
+					fi = i
+					break
+				}
+			}
+			if fi == -1 {
+				precomps[jmask] = append(precomps[jmask], precomp{nPresses: nPresses, joltages: joltages})
+			} else {
+				precomps[jmask][fi].nPresses = min(precomps[jmask][fi].nPresses, nPresses)
 			}
 		}
+		type intermediate struct {
+			nPresses int
+			residual []int
+		}
+		m := 1
+		solutions := make([]int, 0)
+		ims := []intermediate{{nPresses: 0, residual: slices.Clone(machine.joltages)}}
+		for len(ims) != 0 {
+			newIms := make([]intermediate, 0)
+			for _, im := range ims {
+				rm := 0
+				for i, r := range im.residual {
+					if r&1 == 1 {
+						rm |= (1 << i)
+					}
+				}
+				for _, p := range precomps[rm] {
+					newResidual := make([]int, len(im.residual))
+					for i := range newResidual {
+						r := im.residual[i] - p.joltages[i]
+						if r&1 == 1 {
+							return fmt.Errorf("bit is set?")
+						}
+						newResidual[i] = r >> 1
+					}
+					if slices.Min(newResidual) < 0 {
+						continue
+					}
+					nPresses := im.nPresses + p.nPresses*m
+					if slices.Max(newResidual) == 0 {
+						solutions = append(solutions, nPresses)
+						continue
+					}
+
+					newIms = append(newIms, intermediate{residual: newResidual, nPresses: nPresses})
+				}
+			}
+			ims = newIms
+			m *= 2
+		}
+		slog.Debug("done", "solutions", solutions)
+		totalPresses += slices.Min(solutions)
+		// for jm, p := range precomps {
+		// 	slog.Debug("pc", "jm", jm, "p", p)
+		// }
 	}
 	context.Solution("B", totalPresses)
 
